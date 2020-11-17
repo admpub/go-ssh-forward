@@ -61,7 +61,7 @@ func main() {
   }
  
   forward, forwardErrors, bootstrapErr := fw.NewForward(forwardConfig)
-  handleForwardErrors(forward)
+  handleForwardErrors(forwardErrors)
   defer forward.Stop()
   if bootstrapErr != nil {
 		log.Printf("bootstrapErr: %s", bootstrapErr)
