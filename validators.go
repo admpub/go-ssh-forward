@@ -37,7 +37,7 @@ func checkSSHConfig(sshConfig *SSHConfig) error {
 	if sshConfig.Address == "" {
 		return fmt.Errorf("Address cannot be empty")
 	}
-	if sshConfig.PrivateKeyFile == "" && sshConfig.Password == "" {
+	if sshConfig.PrivateKeyFile == "" && sshConfig.PrivateKey == "" && sshConfig.Password == "" {
 		return fmt.Errorf("Either PrivateKeyFile or Password has to be set")
 	}
 

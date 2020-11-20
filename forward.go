@@ -21,8 +21,10 @@ var (
 type SSHConfig struct {
 	Address        string
 	User           string
-	PrivateKeyFile string
 	Password       string
+	PrivateKeyFile string
+	PrivateKey     string
+	Passphrase     string
 }
 
 // Config the configuration for the forward
@@ -131,8 +133,30 @@ func convertToSSHConfig(toConvert *SSHConfig) (*ssh.ClientConfig, error) {
 		Timeout:         connectionTimeout,
 	}
 
-	if toConvert.PrivateKeyFile != "" {
-		publicKey, err := publicKeyFile(toConvert.PrivateKeyFile)
+	if len(toConvert.PrivateKeyFile) > 0 {
+		var (
+			publicKey ssh.AuthMethod
+			err       error
+		)
+		if len(toConvert.Passphrase) > 0 {
+			publicKey, err = publicKeyFileWithPassphrase(toConvert.PrivateKeyFile, toConvert.Passphrase)
+		} else {
+			publicKey, err = publicKeyFile(toConvert.PrivateKeyFile)
+		}
+		if err != nil {
+			return nil, err
+		}
+		config.Auth = []ssh.AuthMethod{publicKey}
+	} else if len(toConvert.PrivateKey) > 0 {
+		var (
+			publicKey ssh.AuthMethod
+			err       error
+		)
+		if len(toConvert.Passphrase) > 0 {
+			publicKey, err = convertPrivateKeyToPublicKey([]byte(toConvert.PrivateKey), []byte(toConvert.Passphrase))
+		} else {
+			publicKey, err = convertPrivateKeyToPublicKey([]byte(toConvert.PrivateKey), nil)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -150,7 +174,29 @@ func publicKeyFile(file string) (ssh.AuthMethod, error) {
 		return nil, err
 	}
 
-	key, err := ssh.ParsePrivateKey(buffer)
+	return convertPrivateKeyToPublicKey(buffer, nil)
+}
+
+// publicKeyFile helper to read the key files
+func publicKeyFileWithPassphrase(file string, passphrase string) (ssh.AuthMethod, error) {
+	buffer, err := ioutil.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+
+	return convertPrivateKeyToPublicKey(buffer, []byte(passphrase))
+}
+
+func convertPrivateKeyToPublicKey(privateKey []byte, passphrase []byte) (ssh.AuthMethod, error) {
+	var (
+		key ssh.Signer
+		err error
+	)
+	if passphrase == nil {
+		key, err = ssh.ParsePrivateKey(privateKey)
+	} else {
+		key, err = ssh.ParsePrivateKeyWithPassphrase(privateKey, passphrase)
+	}
 	if err != nil {
 		return nil, err
 	}
